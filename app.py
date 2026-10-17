@@ -1,31 +1,5 @@
 import streamlit as st
 import pandas as pd
-
-st.title("🚚 Delivery Delay Prediction")
-
-uploaded_file = st.file_uploader(
-    "Upload CSV File",
-    type=["csv"]
-)
-
-if uploaded_file is not None:
-
-    df = pd.read_csv(uploaded_file)
-
-    st.subheader("Dataset Preview")
-
-    st.dataframe(df.head())
-
-    st.subheader("Dataset Shape")
-
-    st.write(df.shape)
-
-    st.subheader("Columns")
-
-    st.write(df.columns.tolist())
-
-import streamlit as st
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -202,4 +176,65 @@ if uploaded_file is not None:
         results.append({
             "Model": "Decision Tree",
             "Accuracy": accuracy_score(y_test, y_pred_dt),
-            "Precision":
+            "Precision": precision_score(y_test, y_pred_dt),
+            "Recall": recall_score(y_test, y_pred_dt),
+            "F1": f1_score(y_test, y_pred_dt)
+        })
+
+        comparison = pd.DataFrame(results)
+
+        st.subheader("🏆 Model Comparison")
+
+        st.dataframe(
+            comparison.sort_values(
+                by="F1",
+                ascending=False
+            )
+        )
+
+        best_model = comparison.sort_values(
+            by="F1",
+            ascending=False
+        ).iloc[0]["Model"]
+
+        st.success(f"Best Model: {best_model}")
+
+        # Confusion Matrix
+
+        st.subheader("📊 Logistic Regression Confusion Matrix")
+
+        fig1, ax1 = plt.subplots()
+
+        ConfusionMatrixDisplay.from_predictions(
+            y_test,
+            y_pred_log,
+            ax=ax1
+        )
+
+        st.pyplot(fig1)
+
+        # ROC Curve
+
+        st.subheader("📈 ROC Curve")
+
+        y_score = logistic_model.predict_proba(X_test)[:, 1]
+
+        auc_score = roc_auc_score(y_test, y_score)
+
+        fig2, ax2 = plt.subplots()
+
+        RocCurveDisplay.from_predictions(
+            y_test,
+            y_score,
+            ax=ax2
+        )
+
+        ax2.set_title(
+            f"ROC Curve (AUC = {auc_score:.3f})"
+        )
+
+        st.pyplot(fig2)
+
+        st.success(
+            f"ROC-AUC Score = {auc_score:.4f}"
+        )
