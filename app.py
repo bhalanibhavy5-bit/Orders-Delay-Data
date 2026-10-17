@@ -7,9 +7,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.tree import DecisionTreeClassifier
 
-# ----------------------------
+# -------------------------
 # PAGE CONFIG
-# ----------------------------
+# -------------------------
 
 st.set_page_config(
     page_title="Delivery Delay Prediction",
@@ -17,9 +17,50 @@ st.set_page_config(
     layout="wide"
 )
 
-# ----------------------------
-# LOAD DATA
-# ----------------------------
+# -------------------------
+# CUSTOM CSS
+# -------------------------
+
+st.markdown("""
+<style>
+
+.block-container{
+    padding-top:2rem;
+}
+
+.stButton>button{
+    background-color:#2563eb;
+    color:white;
+    width:100%;
+    border-radius:10px;
+    height:50px;
+    font-size:18px;
+}
+
+.result-success{
+    background:#14532d;
+    padding:18px;
+    border-radius:10px;
+    color:white;
+    font-size:20px;
+    font-weight:bold;
+}
+
+.result-danger{
+    background:#7f1d1d;
+    padding:18px;
+    border-radius:10px;
+    color:white;
+    font-size:20px;
+    font-weight:bold;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# -------------------------
+# LOAD DATASET
+# -------------------------
 
 df = pd.read_csv("delivery_delay.csv")
 
@@ -30,16 +71,16 @@ y = df[TARGET]
 
 X = pd.get_dummies(X)
 
-feature_columns = X.columns
+feature_cols = X.columns
 
-# ----------------------------
+# -------------------------
 # TRAIN MODEL
-# ----------------------------
+# -------------------------
 
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
-    test_size=0.2,
+    test_size=0.20,
     random_state=42,
     stratify=y
 )
@@ -47,85 +88,84 @@ X_train, X_test, y_train, y_test = train_test_split(
 model = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler()),
-    ("classifier", DecisionTreeClassifier(random_state=42))
+    ("classifier", DecisionTreeClassifier(
+        random_state=42
+    ))
 ])
 
 model.fit(X_train, y_train)
 
-# ----------------------------
-# TITLE
-# ----------------------------
+# -------------------------
+# HEADER
+# -------------------------
 
 st.title("🚚 Delivery Delay Prediction App")
 
-st.write(
-    """
-    This application uses a Decision Tree model to predict
-    whether a delivery will be delayed based on key
-    operational parameters.
-    """
-)
+st.write("""
+This application uses a Decision Tree model to predict whether a
+delivery will be delayed based on operational parameters.
+""")
 
-st.divider()
+st.markdown("---")
 
-st.header("Enter Delivery Details")
+st.subheader("Enter Delivery Details")
+
+# -------------------------
+# INPUT FORM
+# -------------------------
 
 col1, col2 = st.columns(2)
-
-# ----------------------------
-# LEFT SIDE
-# ----------------------------
 
 with col1:
 
     delivery_distance = st.number_input(
         "Delivery Distance",
+        min_value=0.0,
         value=20.0
     )
 
-    traffic = st.slider(
-        "Traffic Congestion (1-5)",
+    traffic_congestion = st.slider(
+        "Traffic Congestion Level (1-5)",
         1,
         5,
         3
     )
 
-    weather = st.slider(
-        "Weather Condition (1-3)",
+    weather_condition = st.slider(
+        "Weather Condition Level (1-3)",
         1,
         3,
         1
     )
 
     delivery_slot = st.slider(
-        "Delivery Slot (1-3)",
+        "Delivery Slot Time (1-3)",
         1,
         3,
         2
     )
 
-    driver_exp = st.number_input(
-        "Driver Experience",
+    driver_experience = st.number_input(
+        "Driver Experience (Years)",
+        min_value=0,
         value=5
     )
 
     num_stops = st.number_input(
-        "Number of Stops",
+        "Number Of Stops",
+        min_value=0,
         value=3
     )
-
-# ----------------------------
-# RIGHT SIDE
-# ----------------------------
 
 with col2:
 
     vehicle_age = st.number_input(
-        "Vehicle Age",
+        "Vehicle Age (Years)",
+        min_value=0,
         value=3
     )
 
-    road_score = st.slider(
+    road_condition_score = st.slider(
         "Road Condition Score (1-5)",
         1,
         5,
@@ -133,59 +173,76 @@ with col2:
     )
 
     package_weight = st.number_input(
-        "Package Weight",
+        "Package Weight (lbs)",
+        min_value=0.0,
         value=15.0
     )
 
-    fuel_eff = st.number_input(
-        "Fuel Efficiency",
+    fuel_efficiency = st.number_input(
+        "Fuel Efficiency (mpg)",
+        min_value=0.0,
         value=12.0
     )
 
-    warehouse_time = st.number_input(
-        "Warehouse Processing Time",
+    warehouse_processing_time = st.number_input(
+        "Warehouse Processing Time (Minutes)",
+        min_value=0,
         value=45
     )
 
-# ----------------------------
-# BUTTON
-# ----------------------------
+st.write("")
+
+# -------------------------
+# PREDICT BUTTON
+# -------------------------
 
 if st.button("Predict Delay Status"):
 
     input_data = pd.DataFrame({
+
         "Delivery_Distance":[delivery_distance],
-        "Traffic_Congestion":[traffic],
-        "Weather_Condition":[weather],
+        "Traffic_Congestion":[traffic_congestion],
+        "Weather_Condition":[weather_condition],
         "Delivery_Slot":[delivery_slot],
-        "Driver_Experience":[driver_exp],
+        "Driver_Experience":[driver_experience],
         "Num_Stops":[num_stops],
         "Vehicle_Age":[vehicle_age],
-        "Road_Condition_Score":[road_score],
+        "Road_Condition_Score":[road_condition_score],
         "Package_Weight":[package_weight],
-        "Fuel_Efficiency":[fuel_eff],
-        "Warehouse_Processing_Time":[warehouse_time]
+        "Fuel_Efficiency":[fuel_efficiency],
+        "Warehouse_Processing_Time":[warehouse_processing_time]
+
     })
 
     input_data = pd.get_dummies(input_data)
 
     input_data = input_data.reindex(
-        columns=feature_columns,
+        columns=feature_cols,
         fill_value=0
     )
 
     prediction = model.predict(input_data)[0]
 
-    st.header("Prediction Result")
+    st.markdown("## Prediction Result")
 
     if prediction == 0:
 
-        st.success(
-            "✅ Predicted Status: No Delay"
+        st.markdown(
+            """
+            <div class="result-success">
+            ✅ Predicted Status : No Delay
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
     else:
 
-        st.error(
-            "⚠️ Predicted Status: Delivery Delayed"
+        st.markdown(
+            """
+            <div class="result-danger">
+            🚚 Predicted Status : Delivery Delayed
+            </div>
+            """,
+            unsafe_allow_html=True
         )
