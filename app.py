@@ -1,304 +1,191 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC
-
 from sklearn.tree import DecisionTreeClassifier
 
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    RocCurveDisplay,
-    ConfusionMatrixDisplay,
-)
-
-# -----------------------------
+# ----------------------------
 # PAGE CONFIG
-# -----------------------------
+# ----------------------------
 
 st.set_page_config(
-    page_title="Delivery Delay Dashboard",
+    page_title="Delivery Delay Prediction",
     page_icon="🚚",
     layout="wide"
 )
 
-# -----------------------------
-# SIDEBAR
-# -----------------------------
+# ----------------------------
+# LOAD DATA
+# ----------------------------
 
-st.sidebar.image(
-    "https://cdn-icons-png.flaticon.com/512/3774/3774299.png",
-    width=80
+df = pd.read_csv("delivery_delay.csv")
+
+TARGET = "Delivery_Delay"
+
+X = df.drop(columns=[TARGET])
+y = df[TARGET]
+
+X = pd.get_dummies(X)
+
+feature_columns = X.columns
+
+# ----------------------------
+# TRAIN MODEL
+# ----------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
-st.sidebar.title("Navigation")
+model = Pipeline([
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler()),
+    ("classifier", DecisionTreeClassifier(random_state=42))
+])
 
-page = st.sidebar.radio(
-    "Go To",
-    [
-        "Home",
-        "Dataset Overview",
-        "EDA",
-        "Model Training"
-    ]
+model.fit(X_train, y_train)
+
+# ----------------------------
+# TITLE
+# ----------------------------
+
+st.title("🚚 Delivery Delay Prediction App")
+
+st.write(
+    """
+    This application uses a Decision Tree model to predict
+    whether a delivery will be delayed based on key
+    operational parameters.
+    """
 )
 
-# -----------------------------
-# HOME PAGE
-# -----------------------------
+st.divider()
 
-if page == "Home":
+st.header("Enter Delivery Details")
 
-    st.title("🚚 Delivery Delay Prediction Dashboard")
+col1, col2 = st.columns(2)
 
-    st.markdown("""
-    ### Project Objective
+# ----------------------------
+# LEFT SIDE
+# ----------------------------
 
-    This application predicts whether a delivery will be delayed using:
+with col1:
 
-    - Delivery Distance
-    - Traffic Congestion
-    - Weather Conditions
-    - Delivery Slot
-    - Driver Experience
-    - Number of Stops
-    - Vehicle Age
-    - Road Condition Score
-    - Package Weight
-    - Fuel Efficiency
+    delivery_distance = st.number_input(
+        "Delivery Distance",
+        value=20.0
+    )
 
-    ### Machine Learning Models
-    ✅ Logistic Regression  
-    ✅ Linear SVC  
-    ✅ Decision Tree  
+    traffic = st.slider(
+        "Traffic Congestion (1-5)",
+        1,
+        5,
+        3
+    )
 
-    Developed using Streamlit & Scikit-Learn.
-    """)
+    weather = st.slider(
+        "Weather Condition (1-3)",
+        1,
+        3,
+        1
+    )
 
-# -----------------------------
-# FILE UPLOAD
-# -----------------------------
+    delivery_slot = st.slider(
+        "Delivery Slot (1-3)",
+        1,
+        3,
+        2
+    )
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload CSV Dataset",
-    type=["csv"]
-)
+    driver_exp = st.number_input(
+        "Driver Experience",
+        value=5
+    )
 
-if uploaded_file is not None:
+    num_stops = st.number_input(
+        "Number of Stops",
+        value=3
+    )
 
-    df = pd.read_csv(uploaded_file)
+# ----------------------------
+# RIGHT SIDE
+# ----------------------------
 
-    TARGET = "Delivery_Delay"
+with col2:
 
-    if TARGET not in df.columns:
+    vehicle_age = st.number_input(
+        "Vehicle Age",
+        value=3
+    )
+
+    road_score = st.slider(
+        "Road Condition Score (1-5)",
+        1,
+        5,
+        3
+    )
+
+    package_weight = st.number_input(
+        "Package Weight",
+        value=15.0
+    )
+
+    fuel_eff = st.number_input(
+        "Fuel Efficiency",
+        value=12.0
+    )
+
+    warehouse_time = st.number_input(
+        "Warehouse Processing Time",
+        value=45
+    )
+
+# ----------------------------
+# BUTTON
+# ----------------------------
+
+if st.button("Predict Delay Status"):
+
+    input_data = pd.DataFrame({
+        "Delivery_Distance":[delivery_distance],
+        "Traffic_Congestion":[traffic],
+        "Weather_Condition":[weather],
+        "Delivery_Slot":[delivery_slot],
+        "Driver_Experience":[driver_exp],
+        "Num_Stops":[num_stops],
+        "Vehicle_Age":[vehicle_age],
+        "Road_Condition_Score":[road_score],
+        "Package_Weight":[package_weight],
+        "Fuel_Efficiency":[fuel_eff],
+        "Warehouse_Processing_Time":[warehouse_time]
+    })
+
+    input_data = pd.get_dummies(input_data)
+
+    input_data = input_data.reindex(
+        columns=feature_columns,
+        fill_value=0
+    )
+
+    prediction = model.predict(input_data)[0]
+
+    st.header("Prediction Result")
+
+    if prediction == 0:
+
+        st.success(
+            "✅ Predicted Status: No Delay"
+        )
+
+    else:
+
         st.error(
-            "Target Column 'Delivery_Delay' Not Found"
+            "⚠️ Predicted Status: Delivery Delayed"
         )
-        st.stop()
-
-    # =========================
-    # DATASET PAGE
-    # =========================
-
-    if page == "Dataset Overview":
-
-        st.title("📊 Dataset Overview")
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Rows",
-            df.shape[0]
-        )
-
-        col2.metric(
-            "Columns",
-            df.shape[1]
-        )
-
-        col3.metric(
-            "Missing Values",
-            int(df.isnull().sum().sum())
-        )
-
-        st.subheader("Dataset Preview")
-
-        st.dataframe(df.head())
-
-        st.subheader("Statistical Summary")
-
-        st.dataframe(
-            df.describe()
-        )
-
-    # =========================
-    # EDA PAGE
-    # =========================
-
-    elif page == "EDA":
-
-        st.title("📈 Exploratory Data Analysis")
-
-        st.subheader("Target Variable Distribution")
-
-        fig, ax = plt.subplots()
-
-        df[TARGET].value_counts().plot(
-            kind="bar",
-            color=["green", "red"],
-            ax=ax
-        )
-
-        st.pyplot(fig)
-
-        st.subheader("Correlation Heatmap")
-
-        fig2, ax2 = plt.subplots(
-            figsize=(10, 6)
-        )
-
-        sns.heatmap(
-            df.corr(numeric_only=True),
-            cmap="coolwarm",
-            ax=ax2
-        )
-
-        st.pyplot(fig2)
-
-    # =========================
-    # MODEL PAGE
-    # =========================
-
-    elif page == "Model Training":
-
-        st.title("🤖 Model Training")
-
-        X = df.drop(columns=[TARGET])
-        y = df[TARGET]
-
-        X = pd.get_dummies(X)
-
-        X_train, X_test, y_train, y_test = train_test_split(
-            X,
-            y,
-            test_size=0.20,
-            random_state=42,
-            stratify=y
-        )
-
-        if st.button("Train Models"):
-
-            results = []
-
-            # ------------------
-            # Logistic Regression
-            # ------------------
-
-            logistic_model = Pipeline([
-                ("imputer",
-                 SimpleImputer(strategy="median")),
-                ("scaler",
-                 StandardScaler()),
-                ("classifier",
-                 LogisticRegression(
-                     max_iter=2000,
-                     random_state=42
-                 ))
-            ])
-
-            logistic_model.fit(
-                X_train,
-                y_train
-            )
-
-            y_pred_log = logistic_model.predict(
-                X_test
-            )
-
-            results.append({
-                "Model": "Logistic Regression",
-                "Accuracy":
-                accuracy_score(
-                    y_test,
-                    y_pred_log
-                ),
-                "Precision":
-                precision_score(
-                    y_test,
-                    y_pred_log
-                ),
-                "Recall":
-                recall_score(
-                    y_test,
-                    y_pred_log
-                ),
-                "F1":
-                f1_score(
-                    y_test,
-                    y_pred_log
-                )
-            })
-
-            # ------------------
-            # Linear SVC
-            # ------------------
-
-            linear_model = Pipeline([
-                ("imputer",
-                 SimpleImputer(strategy="median")),
-                ("scaler",
-                 StandardScaler()),
-                ("classifier",
-                 LinearSVC(
-                     random_state=42,
-                     max_iter=10000
-                 ))
-            ])
-
-            linear_model.fit(
-                X_train,
-                y_train
-            )
-
-            y_pred_svc = linear_model.predict(
-                X_test
-            )
-
-            results.append({
-                "Model": "Linear SVC",
-                "Accuracy":
-                accuracy_score(
-                    y_test,
-                    y_pred_svc
-                ),
-                "Precision":
-                precision_score(
-                    y_test,
-                    y_pred_svc
-                ),
-                "Recall":
-                recall_score(
-                    y_test,
-                    y_pred_svc
-                ),
-                "F1":
-                f1_score(
-                    y_test,
-                    y_pred_svc
-                )
-            })
-
-            # ------------------
-       
