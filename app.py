@@ -52,9 +52,6 @@ if TARGET not in df.columns:
 if df.empty:
     raise ValueError("The dataset is empty.")
 
-print(f"Loaded: {csv_path.resolve()}")
-print(f"Dataset shape: {df.shape}")
-
 # Separate features and target; remove rows with a missing target.
 df = df.dropna(subset=[TARGET]).copy()
 X = df.drop(columns=[TARGET])
@@ -73,9 +70,6 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.20, random_state=RANDOM_STATE, stratify=y
 )
 
-print("Training features:", X_train.shape)
-print("Test features:", X_test.shape)
-print("Target classes:", sorted(pd.Series(y).dropna().unique().tolist()))
 
 logistic_model = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
@@ -85,24 +79,16 @@ logistic_model = Pipeline([
 logistic_model.fit(X_train, y_train)
 
 y_pred_log = logistic_model.predict(X_test)
-print(f"Test accuracy:  {accuracy_score(y_test, y_pred_log):.4f}")
-print(f"Test precision: {precision_score(y_test, y_pred_log, pos_label=1, zero_division=0):.4f}")
-print(f"Test recall:    {recall_score(y_test, y_pred_log, pos_label=1, zero_division=0):.4f}")
-print(f"Test F1 score:  {f1_score(y_test, y_pred_log, pos_label=1, zero_division=0):.4f}")
-print("\nClassification report:")
-print(classification_report(y_test, y_pred_log, zero_division=0))
 
 ConfusionMatrixDisplay.from_predictions(y_test, y_pred_log, cmap=plt.cm.Blues)
 plt.title("Logistic Regression — Confusion Matrix")
 plt.tight_layout()
-plt.show()
 
 # ROC-AUC is meaningful for binary classification when probability estimates are available.
 positive_label = 1 if 1 in set(y_train) else sorted(pd.Series(y_train).unique())[-1]
 y_score_log = logistic_model.predict_proba(X_test)[:, list(logistic_model.classes_).index(positive_label)]
 y_test_binary = (pd.Series(y_test).to_numpy() == positive_label).astype(int)
 auc_log = roc_auc_score(y_test_binary, y_score_log)
-print(f"ROC-AUC: {auc_log:.4f}")
 
 RocCurveDisplay.from_predictions(y_test_binary, y_score_log, name="Logistic Regression")
 plt.plot([0, 1], [0, 1], linestyle="--", color="gray", label="Random classifier")
@@ -123,11 +109,9 @@ cv_results = cross_validate(
     logistic_model, X, y, cv=cv, scoring=scoring, n_jobs=-1, error_score="raise"
 )
 
-print("5-fold cross-validation (mean ± standard deviation)")
-print("-" * 52)
+
 for metric in scoring:
     values = cv_results[f"test_{metric}"]
-    print(f"{metric.upper():10}: {values.mean():.4f} ± {values.std():.4f}")
 
 linear_svc_model = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
@@ -137,14 +121,9 @@ linear_svc_model = Pipeline([
 linear_svc_model.fit(X_train, y_train)
 y_pred_linear_svc = linear_svc_model.predict(X_test)
 
-print(f"Linear SVC test accuracy: {accuracy_score(y_test, y_pred_linear_svc):.4f}")
-print(classification_report(y_test, y_pred_linear_svc, zero_division=0))
-
 linear_svc_cv = cross_val_score(
     linear_svc_model, X, y, cv=cv, scoring="accuracy", n_jobs=-1
 )
-print("Linear SVC CV accuracy scores:", np.round(linear_svc_cv, 4))
-print(f"Mean CV accuracy: {linear_svc_cv.mean():.4f} ± {linear_svc_cv.std():.4f}")
 
 svc_pipeline = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
@@ -169,14 +148,8 @@ grid_search = GridSearchCV(
 )
 grid_search.fit(X_train, y_train)
 
-print("Best SVC parameters:")
-print(grid_search.best_params_)
-print(f"Best training CV accuracy: {grid_search.best_score_:.4f}")
-
 best_svc = grid_search.best_estimator_
 y_pred_svc = best_svc.predict(X_test)
-print(f"Optimized SVC test accuracy: {accuracy_score(y_test, y_pred_svc):.4f}")
-print(classification_report(y_test, y_pred_svc, zero_division=0))
 ConfusionMatrixDisplay.from_predictions(y_test, y_pred_svc, cmap=plt.cm.Blues)
 plt.title("Tuned SVC — Confusion Matrix")
 plt.tight_layout()
@@ -188,9 +161,6 @@ dt_model = Pipeline([
 ])
 dt_model.fit(X_train, y_train)
 y_pred_dt = dt_model.predict(X_test)
-
-print(f"Decision Tree test accuracy: {accuracy_score(y_test, y_pred_dt):.4f}")
-print(classification_report(y_test, y_pred_dt, zero_division=0))
 
 from sklearn.tree import plot_tree
 
@@ -234,9 +204,6 @@ comparison = pd.DataFrame([
 
 sample_input = X_test.iloc[[0]].copy()
 predicted_class = logistic_model.predict(sample_input)[0]
-print("Sample input:")
-print("Predicted Delivery_Delay:", predicted_class)
 
 if hasattr(logistic_model, "predict_proba"):
     probabilities = logistic_model.predict_proba(sample_input)[0]
-    print("Class probabilities:", dict(zip(logistic_model.classes_, np.round(probabilities, 4))))
