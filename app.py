@@ -2,19 +2,16 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-from sklearn.model_selection import (
-    train_test_split,
-    StratifiedKFold,
-    GridSearchCV
-)
-
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC, SVC
+from sklearn.svm import LinearSVC
+
 from sklearn.tree import DecisionTreeClassifier
 
 from sklearn.metrics import (
@@ -24,19 +21,78 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
     RocCurveDisplay,
-    ConfusionMatrixDisplay
+    ConfusionMatrixDisplay,
 )
 
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+
 st.set_page_config(
-    page_title="Delivery Delay Prediction",
+    page_title="Delivery Delay Dashboard",
     page_icon="🚚",
     layout="wide"
 )
 
-st.title("🚚 Delivery Delay Prediction Dashboard")
+# -----------------------------
+# SIDEBAR
+# -----------------------------
 
-uploaded_file = st.file_uploader(
-    "Upload Delivery Dataset",
+st.sidebar.image(
+    "https://cdn-icons-png.flaticon.com/512/3774/3774299.png",
+    width=80
+)
+
+st.sidebar.title("Navigation")
+
+page = st.sidebar.radio(
+    "Go To",
+    [
+        "Home",
+        "Dataset Overview",
+        "EDA",
+        "Model Training"
+    ]
+)
+
+# -----------------------------
+# HOME PAGE
+# -----------------------------
+
+if page == "Home":
+
+    st.title("🚚 Delivery Delay Prediction Dashboard")
+
+    st.markdown("""
+    ### Project Objective
+
+    This application predicts whether a delivery will be delayed using:
+
+    - Delivery Distance
+    - Traffic Congestion
+    - Weather Conditions
+    - Delivery Slot
+    - Driver Experience
+    - Number of Stops
+    - Vehicle Age
+    - Road Condition Score
+    - Package Weight
+    - Fuel Efficiency
+
+    ### Machine Learning Models
+    ✅ Logistic Regression  
+    ✅ Linear SVC  
+    ✅ Decision Tree  
+
+    Developed using Streamlit & Scikit-Learn.
+    """)
+
+# -----------------------------
+# FILE UPLOAD
+# -----------------------------
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload CSV Dataset",
     type=["csv"]
 )
 
@@ -44,197 +100,205 @@ if uploaded_file is not None:
 
     df = pd.read_csv(uploaded_file)
 
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
-
     TARGET = "Delivery_Delay"
 
     if TARGET not in df.columns:
-        st.error("Target column 'Delivery_Delay' not found.")
+        st.error(
+            "Target Column 'Delivery_Delay' Not Found"
+        )
         st.stop()
 
-    X = df.drop(columns=[TARGET])
-    y = df[TARGET]
+    # =========================
+    # DATASET PAGE
+    # =========================
 
-    X = pd.get_dummies(X)
+    if page == "Dataset Overview":
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        random_state=42,
-        stratify=y
-    )
+        st.title("📊 Dataset Overview")
 
-    st.write("### Dataset Information")
+        col1, col2, col3 = st.columns(3)
 
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Rows", df.shape[0])
-    col2.metric("Columns", df.shape[1])
-    col3.metric("Target Classes", y.nunique())
-
-    if st.button("Train Models"):
-
-        results = []
-
-        # Logistic Regression
-
-        logistic_model = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-            ("classifier", LogisticRegression(
-                max_iter=2000,
-                random_state=42
-            ))
-        ])
-
-        logistic_model.fit(X_train, y_train)
-
-        y_pred_log = logistic_model.predict(X_test)
-
-        acc = accuracy_score(y_test, y_pred_log)
-
-        results.append({
-            "Model": "Logistic Regression",
-            "Accuracy": acc,
-            "Precision": precision_score(y_test, y_pred_log),
-            "Recall": recall_score(y_test, y_pred_log),
-            "F1": f1_score(y_test, y_pred_log)
-        })
-
-        # Linear SVC
-
-        linear_svc_model = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-            ("classifier", LinearSVC(
-                max_iter=10000,
-                random_state=42
-            ))
-        ])
-
-        linear_svc_model.fit(X_train, y_train)
-
-        y_pred_svc_linear = linear_svc_model.predict(X_test)
-
-        results.append({
-            "Model": "Linear SVC",
-            "Accuracy": accuracy_score(y_test, y_pred_svc_linear),
-            "Precision": precision_score(y_test, y_pred_svc_linear),
-            "Recall": recall_score(y_test, y_pred_svc_linear),
-            "F1": f1_score(y_test, y_pred_svc_linear)
-        })
-
-        # Tuned SVC
-
-        svc_pipeline = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-            ("svc", SVC())
-        ])
-
-        param_grid = {
-            "svc__kernel": ["linear", "rbf"],
-            "svc__C": [0.1, 1, 10]
-        }
-
-        grid_search = GridSearchCV(
-            svc_pipeline,
-            param_grid,
-            cv=3,
-            scoring="accuracy"
+        col1.metric(
+            "Rows",
+            df.shape[0]
         )
 
-        grid_search.fit(X_train, y_train)
+        col2.metric(
+            "Columns",
+            df.shape[1]
+        )
 
-        best_svc = grid_search.best_estimator_
+        col3.metric(
+            "Missing Values",
+            int(df.isnull().sum().sum())
+        )
 
-        y_pred_svc = best_svc.predict(X_test)
+        st.subheader("Dataset Preview")
 
-        results.append({
-            "Model": "Tuned SVC",
-            "Accuracy": accuracy_score(y_test, y_pred_svc),
-            "Precision": precision_score(y_test, y_pred_svc),
-            "Recall": recall_score(y_test, y_pred_svc),
-            "F1": f1_score(y_test, y_pred_svc)
-        })
+        st.dataframe(df.head())
 
-        # Decision Tree
-
-        dt_model = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("classifier", DecisionTreeClassifier(
-                random_state=42
-            ))
-        ])
-
-        dt_model.fit(X_train, y_train)
-
-        y_pred_dt = dt_model.predict(X_test)
-
-        results.append({
-            "Model": "Decision Tree",
-            "Accuracy": accuracy_score(y_test, y_pred_dt),
-            "Precision": precision_score(y_test, y_pred_dt),
-            "Recall": recall_score(y_test, y_pred_dt),
-            "F1": f1_score(y_test, y_pred_dt)
-        })
-
-        comparison = pd.DataFrame(results)
-
-        st.subheader("🏆 Model Comparison")
+        st.subheader("Statistical Summary")
 
         st.dataframe(
-            comparison.sort_values(
-                by="F1",
-                ascending=False
-            )
+            df.describe()
         )
 
-        best_model = comparison.sort_values(
-            by="F1",
-            ascending=False
-        ).iloc[0]["Model"]
+    # =========================
+    # EDA PAGE
+    # =========================
 
-        st.success(f"Best Model: {best_model}")
+    elif page == "EDA":
 
-        # Confusion Matrix
+        st.title("📈 Exploratory Data Analysis")
 
-        st.subheader("📊 Logistic Regression Confusion Matrix")
+        st.subheader("Target Variable Distribution")
 
-        fig1, ax1 = plt.subplots()
+        fig, ax = plt.subplots()
 
-        ConfusionMatrixDisplay.from_predictions(
-            y_test,
-            y_pred_log,
-            ax=ax1
+        df[TARGET].value_counts().plot(
+            kind="bar",
+            color=["green", "red"],
+            ax=ax
         )
 
-        st.pyplot(fig1)
+        st.pyplot(fig)
 
-        # ROC Curve
+        st.subheader("Correlation Heatmap")
 
-        st.subheader("📈 ROC Curve")
+        fig2, ax2 = plt.subplots(
+            figsize=(10, 6)
+        )
 
-        y_score = logistic_model.predict_proba(X_test)[:, 1]
-
-        auc_score = roc_auc_score(y_test, y_score)
-
-        fig2, ax2 = plt.subplots()
-
-        RocCurveDisplay.from_predictions(
-            y_test,
-            y_score,
+        sns.heatmap(
+            df.corr(numeric_only=True),
+            cmap="coolwarm",
             ax=ax2
-        )
-
-        ax2.set_title(
-            f"ROC Curve (AUC = {auc_score:.3f})"
         )
 
         st.pyplot(fig2)
 
-        st.success(
-            f"ROC-AUC Score = {auc_score:.4f}"
+    # =========================
+    # MODEL PAGE
+    # =========================
+
+    elif page == "Model Training":
+
+        st.title("🤖 Model Training")
+
+        X = df.drop(columns=[TARGET])
+        y = df[TARGET]
+
+        X = pd.get_dummies(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=0.20,
+            random_state=42,
+            stratify=y
         )
+
+        if st.button("Train Models"):
+
+            results = []
+
+            # ------------------
+            # Logistic Regression
+            # ------------------
+
+            logistic_model = Pipeline([
+                ("imputer",
+                 SimpleImputer(strategy="median")),
+                ("scaler",
+                 StandardScaler()),
+                ("classifier",
+                 LogisticRegression(
+                     max_iter=2000,
+                     random_state=42
+                 ))
+            ])
+
+            logistic_model.fit(
+                X_train,
+                y_train
+            )
+
+            y_pred_log = logistic_model.predict(
+                X_test
+            )
+
+            results.append({
+                "Model": "Logistic Regression",
+                "Accuracy":
+                accuracy_score(
+                    y_test,
+                    y_pred_log
+                ),
+                "Precision":
+                precision_score(
+                    y_test,
+                    y_pred_log
+                ),
+                "Recall":
+                recall_score(
+                    y_test,
+                    y_pred_log
+                ),
+                "F1":
+                f1_score(
+                    y_test,
+                    y_pred_log
+                )
+            })
+
+            # ------------------
+            # Linear SVC
+            # ------------------
+
+            linear_model = Pipeline([
+                ("imputer",
+                 SimpleImputer(strategy="median")),
+                ("scaler",
+                 StandardScaler()),
+                ("classifier",
+                 LinearSVC(
+                     random_state=42,
+                     max_iter=10000
+                 ))
+            ])
+
+            linear_model.fit(
+                X_train,
+                y_train
+            )
+
+            y_pred_svc = linear_model.predict(
+                X_test
+            )
+
+            results.append({
+                "Model": "Linear SVC",
+                "Accuracy":
+                accuracy_score(
+                    y_test,
+                    y_pred_svc
+                ),
+                "Precision":
+                precision_score(
+                    y_test,
+                    y_pred_svc
+                ),
+                "Recall":
+                recall_score(
+                    y_test,
+                    y_pred_svc
+                ),
+                "F1":
+                f1_score(
+                    y_test,
+                    y_pred_svc
+                )
+            })
+
+            # ------------------
+       
