@@ -54,7 +54,6 @@ if df.empty:
 
 print(f"Loaded: {csv_path.resolve()}")
 print(f"Dataset shape: {df.shape}")
-display(df.head())
 display(df[TARGET].value_counts(dropna=False).rename("count").to_frame())
 
 # Separate features and target; remove rows with a missing target.
@@ -245,17 +244,3 @@ print("Predicted Delivery_Delay:", predicted_class)
 if hasattr(logistic_model, "predict_proba"):
     probabilities = logistic_model.predict_proba(sample_input)[0]
     print("Class probabilities:", dict(zip(logistic_model.classes_, np.round(probabilities, 4))))
-
-pip install streamlit
-
-# Commented out IPython magic to ensure Python compatibility.
-# %%writefile app.py
-# 
-# import streamlit as st
-# 
-# st.title("My First Streamlit App")
-# st.write("Hello Paresh!")
-
-!pip install streamlit pyngrok
-
-!streamlit run app.py &>/content/logs.txt &
