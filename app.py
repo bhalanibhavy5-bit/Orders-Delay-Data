@@ -54,7 +54,6 @@ if df.empty:
 
 print(f"Loaded: {csv_path.resolve()}")
 print(f"Dataset shape: {df.shape}")
-display(df[TARGET].value_counts(dropna=False).rename("count").to_frame())
 
 # Separate features and target; remove rows with a missing target.
 df = df.dropna(subset=[TARGET]).copy()
@@ -233,12 +232,9 @@ comparison = pd.DataFrame([
     for name, pred in models.items()
 ]).sort_values("F1", ascending=False).reset_index(drop=True)
 
-display(comparison.round(4))
-
 sample_input = X_test.iloc[[0]].copy()
 predicted_class = logistic_model.predict(sample_input)[0]
 print("Sample input:")
-display(sample_input)
 print("Predicted Delivery_Delay:", predicted_class)
 
 if hasattr(logistic_model, "predict_proba"):
